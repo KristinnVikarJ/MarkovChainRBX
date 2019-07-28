@@ -1,5 +1,5 @@
-local m = {}
-m.__index = m
+local Markov = {}
+Markov.__index = Markov
 
 function ChooseWeighted(tbl) --i is string, v is number, has to be exactly that
 	local total = 0
@@ -16,11 +16,11 @@ function ChooseWeighted(tbl) --i is string, v is number, has to be exactly that
 	end
 end
 
-function ChooseFirst(self)
+function Markov:ChooseFirst()
 	local tabl = {}
 	for i,v in pairs(self.MarkovWeb) do
-		if v["StartChance"] then
-			tabl[i] = v["StartChance"]
+		if v.StartChance then
+			tabl[i] = v.StartChance
 		end
 	end
 	return ChooseWeighted(tabl)
@@ -30,23 +30,24 @@ function ProcessTable(tbl)
 	if next(tbl) == nil then return nil end
 	
 	local newtbl = {}
-	local iteration = 0
 	for i,v in pairs(tbl) do
 		if i ~= "nam" and i ~= "StartChance" then
 			newtbl[i] = v
-			iteration = iteration + 1
 		end
 	end
 	return newtbl
 end
 
-function m:Generate(minlength,maxlength,seed)
+function Markov:Generate(minlength, maxlength, seed)
 	if self.Learned < 1 then
 		print("Cannot Generate with no learned data")		
 		return
 	end
+	minlength = minlength or 1
+	maxlength = maxlength or 100
+	
 	local WordLength = math.random(minlength,maxlength)
-	local currentWord = seed or ChooseFirst(self)
+	local currentWord = seed or self:ChooseFirst()
 	local Sentence = currentWord
 
 	for i = 1, WordLength-1 do
@@ -64,19 +65,20 @@ function m:Generate(minlength,maxlength,seed)
 	return Sentence
 end
 
-function m:Learn(text)
+function Markov:Learn(text)
+	if not text or string.len(text) == 0 then return end
 	local words = {}
 	
 	for word in text:gmatch("%w+") do
 		table.insert(words, word) 
 	end
 	
-	if #words == 0 then return end
 	self.Learned = self.Learned + 1
 	
-	self.MarkovWeb[words[1]] = self.MarkovWeb[words[1]] or {}
-
-	self.MarkovWeb[words[1]]["StartChance"] = self.MarkovWeb[words[1]]["StartChance"] == nil and 1 or self.MarkovWeb[words[1]]["StartChance"] + 1
+	local Root = words[1]
+	
+	self.MarkovWeb[Root] = self.MarkovWeb[Root] or {}
+	self.MarkovWeb[Root].StartChance = self.MarkovWeb[Root].StartChance or 1
 	
 	for i = 1, #words do
 		local current = words[i]
@@ -90,18 +92,10 @@ function m:Learn(text)
 	end
 end
 
-function m:MapWeb() --Not recommended with a lot of data, might print thousands of lines of text
-	for i,v in pairs(self.MarkovWeb) do
-		print(i,v," >")
-		for a,b in pairs(v) do
-			print("    >",a,b)
-		end
-	end
-end
-
 local module = {}
+
 function module:New()
-	return setmetatable({MarkovWeb = {}, Learned = 0},{__index = m})
+	return setmetatable({MarkovWeb = {}, Learned = 0}, Markov)
 end
 
 return module
